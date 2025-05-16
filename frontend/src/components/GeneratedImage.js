@@ -8,6 +8,11 @@ const GeneratedImage = ({ imageUrl }) => {
     setImageError(true);
   };
 
+  // Check if the imageUrl is a base64 string or a regular URL
+  const isBase64 = imageUrl && 
+    (imageUrl.startsWith('data:image') || 
+     imageUrl.startsWith('data:application/octet-stream'));
+
   return (
     <div className="generated-image">
       {!imageError ? (
@@ -15,6 +20,7 @@ const GeneratedImage = ({ imageUrl }) => {
           src={imageUrl} 
           alt="Generated fashion design" 
           onError={handleImageError}
+          className={isBase64 ? "user-uploaded-image" : ""}
         />
       ) : (
         <div className="image-error">

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FaUser, FaRobot } from 'react-icons/fa';
+import React, { useState, useRef } from 'react';
+import { FaUser, FaRobot, FaImage, FaTimes } from 'react-icons/fa';
 import '../styles/ChatBox.css';
 import GeneratedImage from './GeneratedImage';
 
@@ -7,19 +7,62 @@ const ChatBox = ({ onClose }) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleImageSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreviewUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+    if ((!inputText.trim() && !selectedImage) || isLoading) return;
+
+    // Create the request body
+    const requestBody = {};
+    
+    // Only add properties if they have values
+    if (inputText.trim()) {
+      requestBody.prompt = inputText;
+    }
+    
+    if (imagePreviewUrl) {
+      requestBody.imageData = imagePreviewUrl;
+    }
 
     const newUserMessage = {
-      text: inputText,
+      text: inputText || "Image uploaded",
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      image: imagePreviewUrl || null
     };
 
     setMessages([...messages, newUserMessage]);
     setInputText('');
+    setSelectedImage(null);
+    setImagePreviewUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setIsLoading(true);
 
     try {
@@ -29,18 +72,22 @@ const ChatBox = ({ onClose }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: newUserMessage.text }),
+        body: JSON.stringify(requestBody),
       });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
       
       const data = await response.json();
       
-      // Create AI response with the backend response and mock image
+      // Create AI response with the backend response and user's image or placeholder
       const aiResponse = {
         text: "Here's a fashion design based on your description.",
-        promptText: data.response, // Store the AI-generated prompt
+        promptText: data.response,
         sender: 'ai',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        image: 'https://placehold.co/400x500/3498db/ffffff?text=Fashion+Design'
+        image: data.imageUrl || (inputText ? 'https://placehold.co/400x500/3498db/ffffff?text=Fashion+Design' : null)
       };
       
       setMessages(prev => [...prev, aiResponse]);
@@ -112,16 +159,47 @@ const ChatBox = ({ onClose }) => {
       </div>
       
       <form className="chat-input" onSubmit={handleSendMessage}>
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder="Describe a fashion item..."
-          disabled={isLoading}
-        />
-        <button type="submit" disabled={isLoading || !inputText.trim()}>
-          Send
-        </button>
+        {imagePreviewUrl && (
+          <div className="image-preview-container">
+            <img src={imagePreviewUrl} alt="Preview" className="image-preview" />
+            <button 
+              type="button" 
+              className="remove-image-btn"
+              onClick={handleRemoveImage}
+            >
+              <FaTimes />
+            </button>
+          </div>
+        )}
+        
+        <div className="input-container">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Describe a fashion item..."
+            disabled={isLoading}
+          />
+          
+          <label className="image-upload-btn">
+            <FaImage />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              disabled={isLoading}
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+            />
+          </label>
+          
+          <button 
+            type="submit" 
+            disabled={isLoading || (!inputText.trim() && !selectedImage)}
+          >
+            Send
+          </button>
+        </div>
       </form>
     </div>
   );

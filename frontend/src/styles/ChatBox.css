@@ -220,4 +220,63 @@
   font-family: monospace;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.input-container {
+  display: flex;
+  width: 100%;
+}
+
+.image-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f1f1;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin: 0 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.image-upload-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.image-preview-container {
+  position: relative;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.image-preview {
+  max-width: 150px;
+  max-height: 150px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.message img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
 } 

@@ -1,27 +1,25 @@
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from openai import AzureOpenAI
 import os
+import base64
 from dotenv import load_dotenv
+from typing import Optional
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Azure OpenAI credentials from environment variables
 endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "https://bitirme-odevi.openai.azure.com/")
 deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY", "")
 
-# Initialize Azure GPT client
 client = AzureOpenAI(
     api_version=api_version,
     azure_endpoint=endpoint,
     api_key=subscription_key,
 )
 
-# System prompt for fashion prompt engineering
 system_prompt = """You are an AI stylist and fashion prompt engineer. Your job is to translate a casual or vague user request into a detailed, specific outfit description suitable for a Stable Diffusion model.
 
 Guidelines:
@@ -42,7 +40,8 @@ Guidelines:
 Respond with only the prompt — no explanations, notes, or extra words."""
 
 class PromptRequest(BaseModel):
-    prompt: str
+    prompt: Optional[str] = None
+    imageData: Optional[str] = None
 
 app = FastAPI()
 
@@ -61,26 +60,39 @@ async def root():
 @app.post("/generate")
 async def generate_fashion(request: PromptRequest):
     user_input = request.prompt
+    user_image = request.imageData
     
-    # Check if API key is available
-    if not subscription_key:
+    # For testing, if user sends an image, return the same image
+    image_url = None
+    if user_image:
+        image_url = user_image
+    
+    if not subscription_key and user_input:
         return {"response": "API key not configured. Please set the AZURE_OPENAI_API_KEY environment variable."}
     
-    try:
-        # Call GPT-4o via Azure OpenAI
-        response = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=200,
-            temperature=0.6,
-            top_p=1.0,
-            model=deployment
-        )
-        
-        generated_prompt = response.choices[0].message.content.strip()
-        
-        return {"response": generated_prompt}
-    except Exception as e:
-        return {"response": f"Error generating prompt: {str(e)}"} 
+    # Handle image-only case
+    if user_image and not user_input:
+        return {"response": "Image received", "imageUrl": image_url}
+    
+    # Handle text-only or text+image case
+    if user_input:
+        try:
+            response = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_input}
+                ],
+                max_tokens=200,
+                temperature=0.6,
+                top_p=1.0,
+                model=deployment
+            )
+            
+            generated_prompt = response.choices[0].message.content.strip()
+            
+            return {"response": generated_prompt, "imageUrl": image_url}
+        except Exception as e:
+            return {"response": f"Error generating prompt: {str(e)}", "imageUrl": image_url}
+    
+    # If we get here, neither text nor image was provided
+    return {"response": "Please provide either text or an image."} 
